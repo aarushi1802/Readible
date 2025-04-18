@@ -1,75 +1,143 @@
 package main.java.org.kindleclone.frontend;
 
+import main.java.org.kindleclone.backend.AuthService;
+import main.java.org.kindleclone.frontend.utils.ThemeManager;
+
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 public class RegisterScreen extends JFrame {
-    private JTextField usernameField, emailField;
-    private JPasswordField passwordField;
-    private JButton registerButton, backButton;
+    private JTextField nameField, emailField;
+    private JPasswordField passwordField, confirmPasswordField;
+    private JButton registerButton, loginButton;
+    private JCheckBox showPasswordCheck;
+    private final AuthService authService;
 
-    public RegisterScreen() {
-        setTitle("Amazon Kindle Clone - Register");
-        setSize(400, 300);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    public RegisterScreen(JFrame parentFrame) {
+        authService = new AuthService();
+        setTitle("Register");
+        setSize(400, 500);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new GridLayout(5, 1));
+        setLayout(new GridBagLayout());
 
-        // Username Field
-        usernameField = new JTextField();
-        add(new JLabel("Username:"));
-        add(usernameField);
+        // Close Parent Window If Open
+        if (parentFrame != null) {
+            parentFrame.dispose();
+        }
 
-        // Email Field
-        emailField = new JTextField();
-        add(new JLabel("Email:"));
-        add(emailField);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Password Field
-        passwordField = new JPasswordField();
-        add(new JLabel("Password:"));
-        add(passwordField);
+        // **Title Label**
+        JLabel titleLabel = new JLabel("Register", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        add(titleLabel, gbc);
 
-        // Buttons
-        registerButton = new JButton("Register");
-        backButton = new JButton("Back to Login");
+        // **Name Field**
+        gbc.gridy = 1; gbc.gridwidth = 1;
+        add(new JLabel("Name:"), gbc);
+        nameField = new JTextField(15);
+        gbc.gridx = 1;
+        add(nameField, gbc);
 
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(registerButton);
-        buttonPanel.add(backButton);
-        add(buttonPanel);
+        // **Email Field**
+        gbc.gridy = 2; gbc.gridx = 0;
+        add(new JLabel("Email:"), gbc);
+        emailField = new JTextField(15);
+        gbc.gridx = 1;
+        add(emailField, gbc);
 
-        // Button Listeners
-        registerButton.addActionListener(new RegisterHandler());
-        backButton.addActionListener(e -> {
-            new LoginScreen().setVisible(true);
-            dispose();
+        // **Password Field**
+        gbc.gridy = 3; gbc.gridx = 0;
+        add(new JLabel("Password:"), gbc);
+        passwordField = new JPasswordField(15);
+        gbc.gridx = 1;
+        add(passwordField, gbc);
+
+        // **Confirm Password Field**
+        gbc.gridy = 4; gbc.gridx = 0;
+        add(new JLabel("Confirm Password:"), gbc);
+        confirmPasswordField = new JPasswordField(15);
+        gbc.gridx = 1;
+        add(confirmPasswordField, gbc);
+
+        // **Show Password Checkbox**
+        showPasswordCheck = new JCheckBox("Show Password");
+        showPasswordCheck.setOpaque(true);
+        gbc.gridy = 5; gbc.gridx = 1;
+        add(showPasswordCheck, gbc);
+        showPasswordCheck.addActionListener(e -> {
+            boolean show = showPasswordCheck.isSelected();
+            passwordField.setEchoChar(show ? (char) 0 : '•');
+            confirmPasswordField.setEchoChar(show ? (char) 0 : '•');
         });
 
+        // **Register Button**
+        registerButton = new JButton("Sign Up");
+        gbc.gridy = 6; gbc.gridx = 0; gbc.gridwidth = 2;
+        add(registerButton, gbc);
+
+        // **Login Button (Switch to Login Page)**
+        loginButton = new JButton("Already have an account? Login");
+        gbc.gridy = 7;
+        add(loginButton, gbc);
+
+        // **Register Button Click**
+        registerButton.addActionListener(e -> registerUser());
+
+        // **Switch to Login Page**
+        loginButton.addActionListener(e -> {
+            dispose();
+            new LoginScreen(this);
+        });
+
+        // **Apply Theme**
+        updateTheme();
         setVisible(true);
     }
 
-    // Register Action
-    private class RegisterHandler implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-            String username = usernameField.getText();
-            String email = emailField.getText();
-            String password = new String(passwordField.getPassword());
+    private void registerUser() {
+        String name = nameField.getText();
+        String email = emailField.getText();
+        String password = new String(passwordField.getPassword());
+        String confirmPassword = new String(confirmPasswordField.getPassword());
 
-            boolean isRegistered = main.java.org.kindleclone.backend.AuthService.registerUser(username, password, email);
-            if (isRegistered) {
-                JOptionPane.showMessageDialog(null, "Registration Successful! Please Login.");
-                new LoginScreen().setVisible(true);
-                dispose();
-            } else {
-                JOptionPane.showMessageDialog(null, "Registration Failed! Try Again.");
-            }
+        if (name.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please fill all fields!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!password.equals(confirmPassword)) {
+            JOptionPane.showMessageDialog(this, "Passwords do not match!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        boolean isRegistered = AuthService.registerUser(name, email, password);
+
+        if (isRegistered) {
+            JOptionPane.showMessageDialog(this, "Registration Successful!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            dispose();
+            new LoginScreen(this);
+        } else {
+            JOptionPane.showMessageDialog(this, "Registration failed. Email may be already in use.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    public static void main(String[] args) {
-        new RegisterScreen();
+
+    private void updateTheme() {
+        boolean isDark = ThemeManager.isDarkMode();
+        Color bgColor = Color.WHITE;
+        Color textColor = isDark ? Color.WHITE : Color.BLACK;
+        Color btnColor = isDark ? new Color(100, 50, 180) : new Color(180, 140, 255);
+
+        getContentPane().setBackground(bgColor);
+
+        loginButton.setBackground(btnColor);
+        loginButton.setForeground(textColor);
+        registerButton.setBackground(btnColor);
+        registerButton.setForeground(textColor);
     }
 }
