@@ -1,51 +1,64 @@
 package main.java.org.kindleclone.backend;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import org.mindrot.jbcrypt.BCrypt;
+import java.sql.*;
 
 public class AuthService {
+    public static boolean registerUser(String username, String name, int age,
+                                       String gender, String email, String password) {
+        try (Connection conn = DatabaseManager.getConnection()) {
+            // Check if username or email already exists
+            String checkSql = "SELECT id FROM users WHERE username = ? OR email = ?";
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+                checkStmt.setString(1, username);
+                checkStmt.setString(2, email);
+                if (checkStmt.executeQuery().next()) {
+                    return false;
+                }
+            }
 
-    // **User Registration**
-    public static boolean registerUser(String name, String email, String password) {
-        String sql = "INSERT INTO users (name, email, password) VALUES (?, ?, ?)";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, name);
-            stmt.setString(2, email);
-            stmt.setString(3, password);  // TODO: Use password hashing later
-
-            int rowsInserted = stmt.executeUpdate();
-            return rowsInserted > 0;
-
+            // Insert new user
+            String insertSql = "INSERT INTO users (username, name, age, gender, email, password) " +
+                    "VALUES (?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(insertSql)) {
+                stmt.setString(1, username);
+                stmt.setString(2, name);
+                stmt.setInt(3, age);
+                stmt.setString(4, gender);
+                stmt.setString(5, email);
+                stmt.setString(6, BCrypt.hashpw(password, BCrypt.gensalt()));
+                return stmt.executeUpdate() > 0;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    // **User Login**
-    public static boolean loginUser(String email, String password) {
-        String sql = "SELECT * FROM users WHERE email = ? AND password = ?";
-
+    public static User loginUser(String email, String password) {
+        String sql = "SELECT * FROM users WHERE email = ?";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setString(1, email);
-            stmt.setString(2, password);
-
             ResultSet rs = stmt.executeQuery();
-            return rs.next();  // If user exists, login is successful
 
+            if (rs.next()) {
+                String storedHash = rs.getString("password");
+                if (BCrypt.checkpw(password, storedHash)) {
+                    return new User(
+                            rs.getInt("id"),
+                            rs.getString("name"),
+                            rs.getString("username"),
+                            rs.getInt("age"),
+                            rs.getString("gender"),
+                            rs.getString("email")
+                    );
+                }
+            }
+            return null;
         } catch (SQLException e) {
             e.printStackTrace();
-            return false;
+            return null;
         }
-    }
-    public static void logoutUser() {
-        SessionManager.logout();  // Clears the logged-in user session
     }
 }

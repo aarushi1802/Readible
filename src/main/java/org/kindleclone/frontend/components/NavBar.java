@@ -1,173 +1,172 @@
 package main.java.org.kindleclone.frontend.components;
 
-import main.java.org.kindleclone.frontend.utils.ThemeManager;
-import main.java.org.kindleclone.frontend.RegisterScreen;
-import main.java.org.kindleclone.frontend.LoginScreen;
-import main.java.org.kindleclone.backend.AuthService;
 import main.java.org.kindleclone.backend.SessionManager;
-
+import main.java.org.kindleclone.frontend.*;
+import main.java.org.kindleclone.backend.User;
+import main.java.org.kindleclone.frontend.utils.ThemeManager;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 
 public class NavBar extends JPanel {
-    private JToggleButton themeToggle;
-    private JButton homeBtn, favBtn, profileBtn;
+    private JButton themeButton;
+    private JButton homeBtn, libraryBtn, favoritesBtn, profileBtn;
     private JPopupMenu profileMenu;
-    private JFrame parentFrame; // ✅ Store parent frame reference
+    private MainDashboard parentFrame;
+    private SearchBar searchBar;
 
-    public NavBar(JFrame parentFrame) {
-        this.parentFrame = parentFrame; // ✅ Assign parent frame
-        setLayout(new BorderLayout());
-        setPreferredSize(new Dimension(900, 50));
-
-        // **Left Panel (Library & Favorites)**
-        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 7));
-        leftPanel.setOpaque(false);
-
-        homeBtn = createModernButton("Library");
-        favBtn = createModernButton("Favorites");
-
-        leftPanel.add(homeBtn);
-        leftPanel.add(favBtn);
-
-        // **Center Panel (Search Bar)**
-        JPanel centerPanel = new JPanel(new GridBagLayout());
-        centerPanel.setOpaque(false);
-        SearchBar searchBar = new SearchBar();
-        centerPanel.add(searchBar);
-
-        // **Right Panel (Dark Mode Toggle + Profile)**
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        rightPanel.setOpaque(false);
-
-        themeToggle = new JToggleButton();
-        themeToggle.setFocusPainted(false);
-        themeToggle.setPreferredSize(new Dimension(35, 35));
-        themeToggle.setBorder(BorderFactory.createEmptyBorder());
-        themeToggle.setContentAreaFilled(false);
-        themeToggle.setOpaque(false);
-
-        // **Profile Button with Emoji**
-        profileBtn = new JButton("👤");
-        profileBtn.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        profileBtn.setFocusPainted(false);
-        profileBtn.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-
-        // **Initialize Profile Menu**
-        profileMenu = new JPopupMenu();
-        updateProfileMenu(); // ✅ Dynamically create menu based on login state
-
-        profileBtn.addActionListener(e -> profileMenu.show(profileBtn, 0, profileBtn.getHeight()));
-
-        rightPanel.add(themeToggle);
-        rightPanel.add(profileBtn); // ✅ Add profile button to navbar
-
-        add(leftPanel, BorderLayout.WEST);
-        add(centerPanel, BorderLayout.CENTER);
-        add(rightPanel, BorderLayout.EAST);
-
-        // **Apply Theme at Start**
-        SwingUtilities.invokeLater(this::updateTheme);
-
-        // **Toggle Theme Event**
-        themeToggle.addActionListener(e -> {
-            ThemeManager.toggleTheme(parentFrame);
+        public NavBar(MainDashboard parentFrame) {
+            this.parentFrame = parentFrame;
+            initComponents();
             updateTheme();
-        });
+        }
+
+        private void initComponents() {
+            setLayout(new BorderLayout());
+            setPreferredSize(new Dimension(1000, 40));
+            setBorder(BorderFactory.createEmptyBorder(5, 20, 5, 20));
+
+            // Left side buttons
+            JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
+            leftPanel.setOpaque(false);
+
+            homeBtn = createBorderlessButton("Home");
+            libraryBtn = createBorderlessButton("Library");
+            favoritesBtn = createBorderlessButton("Favorites");
+
+            homeBtn.addActionListener(e -> parentFrame.showMainView());
+            libraryBtn.addActionListener(e -> parentFrame.showLibraryView());
+            favoritesBtn.addActionListener(e -> parentFrame.showFavoritesView());
+
+            leftPanel.add(homeBtn);
+            leftPanel.add(libraryBtn);
+            leftPanel.add(favoritesBtn);
+
+            // Search bar in center
+            searchBar = new SearchBar();
+            JPanel centerPanel = new JPanel(new GridBagLayout());
+            centerPanel.setOpaque(false);
+            centerPanel.add(searchBar);
+            searchBar.setSearchListener(parentFrame::searchBooks);
+
+            // Right side buttons
+            JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+            rightPanel.setOpaque(false);
+
+            themeButton = createBorderlessButton(ThemeManager.isDarkMode() ? "🌙" : "☀"); // Now using JButton
+            themeButton.addActionListener(e -> {
+                ThemeManager.toggleTheme();
+                parentFrame.updateAllThemes();
+                updateTheme();
+                // Update the theme button icon
+                themeButton.setText(ThemeManager.isDarkMode() ? "🌙" : "☀");
+            });
+
+            profileBtn = createBorderlessButton(SessionManager.isUserLoggedIn() ? "👤" : "🔒");
+            profileBtn.addActionListener(e -> showProfileMenu());
+
+            rightPanel.add(themeButton);
+            rightPanel.add(profileBtn);
+
+            add(leftPanel, BorderLayout.WEST);
+            add(centerPanel, BorderLayout.CENTER);
+            add(rightPanel, BorderLayout.EAST);
+        }
+
+    private String getProfileIconText() {
+        User user = SessionManager.getCurrentUser();
+        if (user != null) {
+            // Use first character of username if available
+            return user.getUsername().isEmpty() ? "👤" :
+                    user.getUsername().substring(0, 1).toUpperCase();
+        }
+        return "🔒";
     }
 
-    // **Update Profile Menu Based on Login State**
-    public void updateProfileMenu()
-    {
-        profileMenu.removeAll(); // ✅ Clear old menu
+    private JButton createBorderlessButton(String text) {
+            JButton button = new JButton(text);
+            button.setFocusPainted(false);
+            button.setContentAreaFilled(false);
+            button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+            button.setFont(new Font("SansSerif", Font.PLAIN, 14));
+            return button;
+        }
+
+    private void showProfileMenu() {
+        profileMenu = new JPopupMenu();
+        updateProfileMenu();
+        profileMenu.show(profileBtn, 0, profileBtn.getHeight());
+    }
+
+    private void updateProfileMenu() {
+        profileMenu.removeAll();
 
         if (SessionManager.isUserLoggedIn()) {
-            // **If Logged In: Show Profile & Logout**
-            JMenuItem profileOption = new JMenuItem("Profile");
-            JMenuItem logoutOption = new JMenuItem("Logout");
+            JMenuItem profileItem = new JMenuItem("Profile");
+            JMenuItem logoutItem = new JMenuItem("Logout");
 
-            logoutOption.addActionListener(e -> {
+            logoutItem.addActionListener(e -> {
                 SessionManager.logout();
-                JOptionPane.showMessageDialog(null, "Logged out successfully.");
-                updateProfileMenu(); // ✅ Refresh UI
+                profileBtn.setText(getProfileIconText());
+                parentFrame.returnToLogin();
                 updateTheme();
             });
 
-            profileMenu.add(profileOption);
-            profileMenu.add(logoutOption);
+            profileMenu.add(profileItem);
+            profileMenu.add(logoutItem);
         } else {
-            // **If Not Logged In: Show Sign In & Login**
-            JMenuItem signInOption = new JMenuItem("Sign In");
-            JMenuItem loginOption = new JMenuItem("Log In");
+            JMenuItem loginItem = new JMenuItem("Login");
+            JMenuItem registerItem = new JMenuItem("Register");
 
-            signInOption.addActionListener(e -> new RegisterScreen(parentFrame));
-            loginOption.addActionListener(e -> {
-                new LoginScreen(parentFrame);
-                SessionManager.login(); // ✅ Set login state
-                updateProfileMenu(); // ✅ Refresh UI immediately
-                updateTheme();
+            loginItem.addActionListener(e -> {
+                parentFrame.dispose();
+                new LoginScreen().setVisible(true);
             });
+            registerItem.addActionListener(e -> {
+                parentFrame.dispose();
+                new RegisterScreen().setVisible(true);
+            });
+            profileMenu.add(loginItem);
+            profileMenu.add(registerItem);
 
-            profileMenu.add(signInOption);
-            profileMenu.add(loginOption);
+            profileMenu.setBackground(ThemeManager.getBackgroundColor());
+            profileMenu.setForeground(ThemeManager.getTextColor());
+            for (Component item : profileMenu.getComponents()) {
+                if (item instanceof JMenuItem) {
+                    ((JMenuItem) item).setBackground(ThemeManager.getBackgroundColor());
+                    ((JMenuItem) item).setForeground(ThemeManager.getTextColor());
+                }
+            }
         }
-        profileMenu.revalidate();
-        profileMenu.repaint();
     }
 
-    // **Update Theme Properly**
     public void updateTheme() {
-        Color lightNavbar = new Color(180, 140, 255);
-        Color darkNavbar = new Color(100, 50, 180);
-        Color lightButton = new Color(180, 140, 255);
-        Color darkButton = new Color(100, 50, 180);
+        Color bgColor = ThemeManager.getBackgroundColor();
+        Color textColor = ThemeManager.getTextColor();
 
-        boolean isDark = ThemeManager.isDarkMode();
+        setBackground(bgColor);
 
-        setBackground(isDark ? darkNavbar : lightNavbar);
-
-        Color menuBg = isDark ? new Color(80, 40, 150) : new Color(200, 160, 255);
-        Color menuText = isDark ? Color.WHITE : Color.BLACK;
-
-        profileMenu.setBackground(menuBg);
-        profileMenu.setBorder(BorderFactory.createLineBorder(menuBg.darker(), 1));
-
-        for (Component comp : profileMenu.getComponents()) {
-            if (comp instanceof JMenuItem) {
-                JMenuItem menuItem = (JMenuItem) comp;
-                menuItem.setOpaque(true);
-                menuItem.setBackground(menuBg);
-                menuItem.setForeground(menuText);
+        // Update all buttons
+        Component[] buttons = {homeBtn, libraryBtn, favoritesBtn, themeButton, profileBtn};
+        for (Component btn : buttons) {
+            if (btn != null) {
+                btn.setForeground(textColor);
+                btn.setBackground(bgColor);
             }
         }
 
-        homeBtn.setBackground(isDark ? darkButton : lightButton);
-        homeBtn.setForeground(isDark ? Color.WHITE : Color.BLACK);
+        // Update search bar if it exists
+        if (searchBar != null) {
+            searchBar.updateTheme();
+        }
 
-        favBtn.setBackground(isDark ? darkButton : lightButton);
-        favBtn.setForeground(isDark ? Color.WHITE : Color.BLACK);
-
-        themeToggle.setBackground(isDark ? darkButton : lightButton);
-        themeToggle.setForeground(isDark ? Color.WHITE : Color.BLACK);
-        themeToggle.setText(isDark ? "🌙" : "☀");
-
-        profileBtn.setBackground(isDark ? darkButton : lightButton);
-        profileBtn.setForeground(isDark ? Color.WHITE : Color.BLACK);
-
-        repaint();
-        revalidate();
-    }
-
-    private JButton createModernButton(String text) {
-        JButton button = new JButton(text);
-        button.setFocusPainted(false);
-        button.setFont(new Font("SansSerif", Font.BOLD, 15));
-        button.setBorder(BorderFactory.createEmptyBorder(8, 18, 8, 18));
-
-        boolean isDark = ThemeManager.isDarkMode();
-        button.setBackground(isDark ? new Color(100, 50, 180) : new Color(180, 140, 255));
-        button.setForeground(isDark ? Color.WHITE : Color.BLACK);
-
-        return button;
+        // Update profile menu if it exists
+        if (profileBtn != null) {
+            profileBtn.setText(getProfileIconText());
+                }
+        // Update theme button icon
+        if (themeButton != null) {
+            themeButton.setText(ThemeManager.isDarkMode() ? "🌙" : "☀");
+        }
     }
 }

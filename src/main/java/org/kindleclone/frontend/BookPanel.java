@@ -1,64 +1,74 @@
 package main.java.org.kindleclone.frontend;
 
+import main.java.org.kindleclone.backend.Book;
+import main.java.org.kindleclone.frontend.utils.ThemeManager;
+
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 
 public class BookPanel extends JPanel {
-    private String title;
-    private String author;
-    private String description;
-    private String coverPath;
-    private MainDashboard dashboard;
+    private final Book book;
+    private final JLabel titleLabel;
+    private final JLabel coverLabel;
 
-    public BookPanel(MainDashboard dashboard, String title, String author, String description, String coverPath) {
-        this.dashboard = dashboard;
-        this.title = title;
-        this.author = author;
-        this.description = description;
-        this.coverPath = coverPath;
+    public BookPanel(MainDashboard dashboard, Book book) {
+        this.book = book;
 
-        setLayout(new BorderLayout());
-        setPreferredSize(new Dimension(150, 220));
-        setBackground(new Color(55, 55, 55));
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setPreferredSize(new Dimension(100, 200));
+        setOpaque(true);
 
-        // Load Book Cover
-        ImageIcon bookIcon;
-        try {
-            bookIcon = new ImageIcon(new ImageIcon(coverPath).getImage().getScaledInstance(140, 180, Image.SCALE_SMOOTH));
-        } catch (Exception e) {
-            bookIcon = new ImageIcon(new ImageIcon("assets/default_cover.jpg").getImage().getScaledInstance(140, 180, Image.SCALE_SMOOTH));
+        // Book cover
+        coverLabel = new JLabel();
+        coverLabel.setPreferredSize(new Dimension(100, 200));
+        coverLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // Load image from path (if available)
+        if (book.getCoverImagePath() != null) {
+            ImageIcon icon = new ImageIcon(book.getCoverImagePath());
+            Image img = icon.getImage().getScaledInstance(100, 200, Image.SCALE_SMOOTH);
+            coverLabel.setIcon(new ImageIcon(img));
+        } else {
+            coverLabel.setText("No Cover");
+            coverLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            coverLabel.setVerticalAlignment(SwingConstants.CENTER);
         }
 
-        JLabel bookCover = new JLabel(bookIcon);
-        bookCover.setHorizontalAlignment(SwingConstants.CENTER);
+        // Book title
+        titleLabel = new JLabel(book.getTitle());
+        titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        titleLabel.setMaximumSize(new Dimension(100, 200));
+        titleLabel.setVerticalAlignment(SwingConstants.TOP);
+        titleLabel.setVerticalTextPosition(SwingConstants.TOP);
+        titleLabel.setHorizontalTextPosition(SwingConstants.CENTER);
 
-        // Book Title
-        JLabel bookTitle = new JLabel(title, SwingConstants.CENTER);
-        bookTitle.setForeground(Color.WHITE);
-        bookTitle.setFont(new Font("Arial", Font.BOLD, 14));
+        add(coverLabel);
+        add(Box.createVerticalStrut(5));
+        add(titleLabel);
 
-        add(bookCover, BorderLayout.CENTER);
-        add(bookTitle, BorderLayout.SOUTH);
-
-        // **Hover Effect**
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                setBackground(new Color(100, 100, 100));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                setBackground(new Color(55, 55, 55));
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                dashboard.showBookDetails(title, author, description, coverPath);
+        // Clickable to show book details
+        setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                dashboard.showBookDetails(book);
             }
         });
+
+        updateTheme();
+    }
+
+    public void updateTheme() {
+        boolean isDark = ThemeManager.isDarkMode();
+        Color bgColor = isDark ? new Color(60, 60, 60) : new Color(255, 255, 255);
+        Color textColor = isDark ? Color.WHITE : Color.BLACK;
+
+        setBackground(bgColor);
+        setForeground(textColor);
+
+        titleLabel.setForeground(textColor);
+        coverLabel.setBackground(bgColor);
     }
 }
